@@ -1,3 +1,5 @@
+//! # 引子
+//! 
 //! 最近一位朋友遇到了这样一个问题：设计类型时，将具有引用关系的两个类型“打包”到同一个结构体中，产生了难以解决的编译错误。
 //! 社区中也常常有同学问遇到类似的问题，在这篇文章中我们将从零开始，探究该如何设计这类自引用的类型，并逐步改进我们的设计。
 //! 
@@ -38,7 +40,7 @@
 //!      +-------------------------------------------------------+-------------+
 //! ```
 //! 
-//! Rust提供了非常强的安全保证，不会允许这种事发生。让我们构造一个`BundleService`的实例看看会发生什么：
+//! Rust提供了非常强的安全保证，不会允许这种事发生。让我们先构造一个`BundleService`的实例：
 //! 
 //! ```
 //! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};
@@ -57,19 +59,28 @@
 //! bundle.func_logout = Function:: from_ref(&bundle.library, "logout").unwrap();
 //! ```
 //! 
-//! 首先我们加载动态链接库获取`library`，并通过`dummy()`创建空白的`Function`s占位，构造一个没有自引用的`bundle`。然后再
-//! 通过`bundle.library`获取真正的`func_*`函数，将它们赋值到`bundle`中。这样就构造成功了，我们获得了一个自引用的`bundle`。
-//! 但如果我们尝试把它移动到另一个变量中，会得到一个编译错误。Rust允许我们构造这样一个自引用结构，但不能移动它。如果用户没有
-//! 移动`bundle`的需求，这个设计看起来就够用了。
+//! - 首先加载动态链接库获取`library`，并通过`dummy()`创建空白的`Function`s占位，构造了一个没有自引用的`bundle`；
+//! - 然后通过`bundle.library`获取了真正的`func_*`函数，将它们赋值到`bundle`中，这样`bundle`就变成了一个自引用结构。
 //! 
-//! 然而，由于目前Rust没有完成Placement New这样的特性，我们无法为它编写一个`new`函数，因为从`new`函数中返回它也是Move操作。
-//! 并且，我们无法在`bundle`上调用接收`&mut self`的方法，因为`bundle`的一个字段已经被借用了，这给`BundleService`的实现带
-//! 来了更多的限制。
+//! 尽管构造成功了，可一旦我们尝试把它移动到另一个变量中，就会得到一个编译错误：
+//! 
+//! ``` text
+//! error[E0505]: cannot move out of `bundle` because it is borrowed
+//! ```
+//! 
+//! 这意味着：
+//! 
+//! - 这个自引用结构无法被移动、修改（不暴露字段的情况下）。
+//! - 这个自引用结构不能有接收`&mut self`的方法。
+//! 
+//! 也就是说Rust允许我们构造这样一个自引用结构，但不能移动它。这样的限制过于严格了，我们需要更加灵活的工具。
 //! 
 //! 
-//! ## Pinning
+//! # Pinning
 //! 
-//! 标准库提供了Pinning相关基础设施，给予我们将类型（的实例）钉死在内存中的能力。如果对Pinning有疑问，可以看一下[这个问答](<#关于pinning的问答>)。
+//! 标准库提供了Pinning相关基础设施，给予我们将类型（的实例）钉死在内存中的能力。如果对Pinning有疑问，
+//! 可以看一下[这个关于Pinning的问答](<#关于pinning的问答>)。
+//! 
 //! 让我们先定义一个支持Pinned的`BundleService`类型：
 //! 
 //! ```
@@ -83,8 +94,9 @@
 //! }
 //! ```
 //! 
-//! 我们将引用换成了裸指针，摆脱了借用规则的约束；并通过`PhantomPinned`消除了`Unpin`的自动实现，使`BundleService`能够
-//! 真正地被`Pin<P>`钉死在内存中。违反别名规则（Alias Rules）是未定义行为，现在没有了借用检查器的帮助，我们应当更加小心。
+//! - 首先将引用换成了裸指针，摆脱了借用规则的约束；
+//! - 并通过`PhantomPinned`消除了`Unpin`的自动实现，使`BundleService`能够真正地被`Pin<P>`钉死在内存中。
+//! 
 //! 接下来让我们为它构建一个Pinned的实例：
 //! 
 //! ```
@@ -111,10 +123,13 @@
 //! let bundle: Pin<Box<BundleService>> = boxed;
 //! ```
 //! 
-//! 我们先通过`dummy()`在堆上创建一个没有自引用的`bundle`，由于使用了`Box::pin`，此时在堆中的`BundleService`已经被钉死了。
-//! 我们可以任意移动`bundle`这个变量，因为它只是一个指针，并且用户无法通过`bundle`移动真正的`BundleService`。然而，我们需要
-//! 通过`library`获取真正的`func_*`，并用它们替换掉`dummy()`产生的空白函数。在这里我们通过`unsafe`实现这个目的，只要遵守
-//! `get_unchecked_mut`的安全约定并且不产生未定义行为即可。最终我们构造了一个Pinned且自引用的`bundle`，内存布局是这样的：
+//! - 先通过`Box::pin`在堆上创建了一个没有自引用的`bundle`。此时堆上的`BundleService`已经被钉死了。用户在Safe Rust中无法
+//!   通过`bundle`获取一个`&mut BundleService`，也就无法移动堆上的`BundleService`。
+//! - 然后我们通过`unsafe`获取`&mut BundleService`，从`library`中获取真正的`func_*`，并用它们替换掉`dummy()`产生的空白函数
+//!   完成对`bundle`的初始化。
+//! 
+//! 只要遵守`get_unchecked_mut`的安全约定并且不产生未定义行为，我们在这里使用`unsafe`是安全的。
+//! 最终我们构造了一个Pinned且自引用的`bundle`，内存布局是这样的：
 //! 
 //! ``` text
 //! +--------+-------
@@ -135,7 +150,7 @@
 //! 棘手一些。
 //! 
 //! 其实`Pin<P>`不太适合我们的场景，它是为Async Rust设计的，目的是将引用或指针从一段Unsafe代码（如：异步运行时的内部实现）
-//! 通过一段未知的用户代码传递到另一段Unsafe代码（如：编译器为异步函数实现`Future`时生成的代码）时，保证「指向的值在内存中
+//! 通过一段未知的用户代码传递到另一段Unsafe代码（如：编译器为异步函数实现`Future`时生成的代码）中时，保证「指向的值在内存中
 //! 位置不会改变」的承诺不会被未知的用户代码破坏。
 //! 
 //! 
@@ -155,7 +170,9 @@
 //! +---------+
 //! ```
 //! 
-//! 我们可以选择使用裸指针实现它：
+//! 类似于Pinning的方案，在这种设计中，移动`BundleService`并不会造成引用失效。
+//! 
+//! 我们可以选择通过`Box::into_raw`实现这个方案：
 //! 
 //! ```
 //! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};
@@ -165,13 +182,47 @@
 //!     func_login: Function<*const Library, extern "C" fn(*const c_void) -> i32>,
 //!     func_logout: Function<*const Library, extern "C" fn() -> i32>,
 //! }
+//! impl BundleService {
+//!     fn new() -> Self {
+//!         let library = Box::into_raw(Box::new(Library::open("service.dll").unwrap()))
+//!             as *const _;
+//!         Self {
+//!             library: library, 
+//!             func_login: unsafe { Function::from_raw(library, "login").unwrap() },
+//!             func_logout: unsafe { Function::from_raw(library, "logout").unwrap() },
+//!         }
+//!     }
+//! }
 //! ```
 //! 
-//! 创建一个`Box<Library>`，通过`Box::into_raw`将其转换为裸指针，便可以在`func_*`中共享`Library`了。
-//! 最后我们在`BundleService`的`drop`实现中通过`Box::from_raw`取回`Box`，它会在离开作用域后释放堆上
-//! 的`Library`。
+//! - 创建一个`Box<Library>`，通过`Box::into_raw`将其转换为裸指针，便可以在`func_*`中共享`Library`了。 
 //! 
-//! 也可以选择使用引用计数实现它：
+//! 当然，也不要忘了回收资源，否则会造成内存泄漏：
+//! 
+//! 
+//! ```
+//! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};
+//! # use std::ffi::c_void;
+//! # pub struct BundleService {  
+//! #     library: *const Library, 
+//! #     func_login: Function<*const Library, extern "C" fn(*const c_void) -> i32>,
+//! #     func_logout: Function<*const Library, extern "C" fn() -> i32>,
+//! # }
+//! impl Drop for BundleService {
+//!     fn drop(&mut self) {
+//!         let _library = unsafe { Box::from_raw(self.library as *mut Library) };
+//!         self.func_login = Function::dummy();
+//!         self.func_logout = Function::dummy();
+//!     }
+//! }
+//! ```
+//! 
+//! - 在`BundleService`的`drop`实现中通过`Box::from_raw`取回`Box<Library>`，它会在离开作用域后释放堆上的`Library`。
+//! - 在`_library`被释放前，先释放`func_*`，保证被引用的`Library`的生命周期严格长于引用它的`Function`s。
+//! 
+//! ---
+//! 
+//! 也可以选择使用引用计数实现这个方案：
 //! 
 //! ```
 //! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};
@@ -181,16 +232,27 @@
 //!     func_login: Function<Rc<Library>, extern "C" fn(*const c_void) -> i32>,
 //!     func_logout: Function<Rc<Library>, extern "C" fn() -> i32>,
 //! }
+//! impl BundleService {
+//!     fn new() -> Self {
+//!         let library = Rc::new(Library::open("service.dll").unwrap());
+//!         Self {
+//!             library: library.clone(), 
+//!             func_login: Function::from_ref(library.clone(), "login").unwrap(),
+//!             func_logout: Function::from_ref(library.clone(), "logout").unwrap(),
+//!         }
+//!     }
+//! }
 //! ```
 //! 
-//! 使用裸指针需要用到`unsafe`，带来了更大的心智负担；使用引用计数更轻松一些，但带来了额外的性能惩罚。
-//! 
+//! 使用引用计数就不再需要手动释放资源了，也避免了使用`unsafe`，只是会带来一定的运行时开销。不过比起操纵裸指针带来的风险与
+//! 心智负担，引用计数微不足道的开销通常都是能够接受的。
 //! 
 //! # 成熟的解决方案
 //! 
 //! 在C++中处理自引用结构会比较轻松，由于存在移动构造函数，类型的设计者可以在自引用结构被移动时更新类型中存在的指针。
-//! 在Rust中处理自引用结构是比较麻烦的，但存在许多针对自引用结构的库，允许我们避开`unsafe`高效地实现自己的自引用结构。
-//! 譬如rental就有一个相似的例子：
+//! 在Rust中处理自引用结构是比较麻烦的，但也存在许多针对自引用结构的库，允许我们避开`unsafe`方便地实现自己的自引用结构。
+//! 
+//! 譬如[rental](<https://docs.rs/rental/0.5.6/rental/index.html#example>)就有一个相似的例子：
 //! 
 //! ``` ignore
 //! rental! {
@@ -219,32 +281,33 @@
 //! 简直方便极了有木有！
 //! 
 //! 
-//! ## 结语
+//! # 结语
 //! 
 //! 一方面，还是建议使用成熟的库，上文出现的Unsafe实现们作为参考就好。另一方面，可以考虑一下真的需要自引用结构吗？许多时候
 //! 自引用结构也可以拆开封装，向用户暴露两个结构可能能够提供更多的灵活性呢。
 //! 
+//! ---
 //! 
 //! ## 关于Pinning的问答
 //! 
 //! 1. Rust提供了默认的移动语义，不考虑Copy的情况下，类型（的实例）都是可以Move的。对此`Pin<P>`也不例外，为何它能阻止用户Move
 //! 一个变量呢？
 //! 
-//! 关键就在于`P`，它不是我们想钉死在内存中的那个类型，而是对应类型的指针。Safe Rust中的可变性总是独占的，`Pin<P>`阻止用户从`P`中
+//! > 关键就在于`P`，它不是我们想钉死在内存中的那个类型，而是对应类型的指针。Safe Rust中的可变性总是独占的，`Pin<P>`阻止用户从`P`中
 //! 获取`&mut T`，那么用户便无法修改`P`指向的`T`——失去了Move的能力。
 //! 
 //! 2. 那这样类型`T`的设计者怎么执行那些不移动`T`，但是需要`&mut T`的操作呢？
 //! 
-//! 答案不是很优雅，`Pin<P>`提供了一些工具函数执行这样的操作，但更普遍的是通过`unsafe`获取`&mut T`完成相关操作，健全性由类型的设计者保证。
+//! > 答案不是很优雅，`Pin<P>`提供了一些工具函数执行这样的操作，但更普遍的是通过`unsafe`获取`&mut T`完成相关操作，健全性由类型的设计者保证。
 //! 
 //! 3. 用户等到`Pin<P>`离开作用域后，移动原变量，然后再构造一个`Pin<P>`，不就绕过Pinning的约束了吗？
 //! 
-//! 对于`Pin<Box<T>>`来说不存在这个问题，因为`Box<T>`是访问其指向的数据的唯一方式。对于普通的引用而言，这个顾虑是存在的，所以对变量直接
+//! > 对于`Pin<Box<T>>`来说不存在这个问题，因为`Box<T>`是访问其指向的数据的唯一方式。对于普通的引用而言，这个顾虑是存在的，所以对变量直接
 //! 构造一个`P<&mut T>`需要`unsafe`，健全性由用户自行保证。
 //! 
-//! 4. 将变量钉死是通过别名规则（Alias Rules）实现的，修改钉死的变量是通过`unsafe`实现的，那`Pin<P>`存在的意义是什么呢？
+//! 4. 将变量钉死是通过借用规则实现的，修改钉死的变量是通过`unsafe`实现的，那`Pin<P>`存在的意义是什么呢？
 //! 
-//! `Pin<P>`提供一种保证，将「值在内存中的位置不再改变」的承诺在两段`unsafe`代码间的用户代码中传递，基本上是针对Async Rust设计的。
+//! > `Pin<P>`提供一种保证，将「值在内存中的位置不再改变」的承诺在两段`unsafe`代码间的用户代码中传递，基本上是针对Async Rust设计的。
 //! 
 //! [回到Pinning一节](<#pinning>)
 

@@ -1,10 +1,11 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="最近一位朋友遇到了这样一个问题：设计类型时，将具有引用关系的两个类型“打包”到同一个结构体中，产生了难以解决的编译错误。 社区中也常常有同学问遇到类似的问题，在这篇文章中我们将从零开始，探究该如何设计这类自引用的类型，并逐步改进我们的设计。"><meta name="keywords" content="rust, rustlang, rust-lang, self_ref_in_rust"><title>self_ref_in_rust - Rust</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../normalize.css"><link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../dark.css" disabled><link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../storage.js"></script><script src="../crates.js"></script><script defer src="../main.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="引子"><meta name="keywords" content="rust, rustlang, rust-lang, self_ref_in_rust"><title>self_ref_in_rust - Rust</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../normalize.css"><link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../dark.css" disabled><link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../storage.js"></script><script src="../crates.js"></script><script defer src="../main.js"></script>
     <noscript><link rel="stylesheet" href="../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../favicon.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../self_ref_in_rust/index.html"><div class="logo-container"><img class="rust-logo" src="../rust-logo.svg" alt="logo"></div>
         </a><h2 class="location"></h2>
     </nav>
     <nav class="sidebar"><a class="sidebar-logo" href="../self_ref_in_rust/index.html"><div class="logo-container"><img class="rust-logo" src="../rust-logo.svg" alt="logo"></div>
         </a><h2 class="location"><a href="#">Crate self_ref_in_rust</a></h2><div class="sidebar-elems"><div class="block"><ul><li class="version">Version 0.1.0</li><li><a id="all-types" href="all.html">All Items</a></li></div></ul><section><div class="block"><ul><li><a href="#modules">Modules</a></li></ul></div></section><div id="sidebar-vars" data-name="self_ref_in_rust" data-ty="mod" data-relpath=""></div><script defer src="sidebar-items.js"></script></div></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../self_ref_in_rust/index.html"><img class="rust-logo" src="../rust-logo.svg" alt="logo"></a><nav class="sub"><div class="theme-picker hidden"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="22" height="22" alt="Pick another theme!" src="../brush.svg"></button><div id="theme-choices" role="menu"></div></div><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../wheel.svg"></a></div></form></nav></div><section id="main-content" class="content"><div class="main-heading">
-    <h1 class="fqn"><span class="in-band">Crate <a class="mod" href="#">self_ref_in_rust</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span></h1><span class="out-of-band"><a class="srclink" href="../src/self_ref_in_rust/lib.rs.html#1-255">source</a> · <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span></div><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>最近一位朋友遇到了这样一个问题：设计类型时，将具有引用关系的两个类型“打包”到同一个结构体中，产生了难以解决的编译错误。
+    <h1 class="fqn"><span class="in-band">Crate <a class="mod" href="#">self_ref_in_rust</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span></h1><span class="out-of-band"><a class="srclink" href="../src/self_ref_in_rust/lib.rs.html#1-318">source</a> · <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span></div><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="引子"><a href="#引子">引子</a></h2>
+<p>最近一位朋友遇到了这样一个问题：设计类型时，将具有引用关系的两个类型“打包”到同一个结构体中，产生了难以解决的编译错误。
 社区中也常常有同学问遇到类似的问题，在这篇文章中我们将从零开始，探究该如何设计这类自引用的类型，并逐步改进我们的设计。</p>
 <p>想象这样一个场景：在设计一个运行时调用动态链接库中的API的接口时，需要先加载动态链接库获得一个<code>Library</code>结构，
 再从<code>Library</code>中获取多个<code>Function</code>s（<code>Function</code>内部包含<code>Library</code>的引用），最后将<code>Library</code>与<code>Function</code>s放置到
@@ -29,7 +30,7 @@
 +---------+------------+-------------+-------+---------+------------+-------------+
      Λ                                                       |             |
      +-------------------------------------------------------+-------------+</code></pre></div>
-<p>Rust提供了非常强的安全保证，不会允许这种事发生。让我们构造一个<code>BundleService</code>的实例看看会发生什么：</p>
+<p>Rust提供了非常强的安全保证，不会允许这种事发生。让我们先构造一个<code>BundleService</code>的实例：</p>
 
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bundle</span> <span class="op">=</span> <span class="ident">BundleService</span> {
     <span class="ident">library</span>: <span class="ident">Library::open</span>(<span class="string">&quot;service.dll&quot;</span>).<span class="ident">unwrap</span>(), 
@@ -38,16 +39,22 @@
 };
 <span class="ident">bundle</span>.<span class="ident">func_login</span> <span class="op">=</span> <span class="ident">Function</span>:: <span class="ident">from_ref</span>(<span class="kw-2">&amp;</span><span class="ident">bundle</span>.<span class="ident">library</span>, <span class="string">&quot;login&quot;</span>).<span class="ident">unwrap</span>();
 <span class="ident">bundle</span>.<span class="ident">func_logout</span> <span class="op">=</span> <span class="ident">Function</span>:: <span class="ident">from_ref</span>(<span class="kw-2">&amp;</span><span class="ident">bundle</span>.<span class="ident">library</span>, <span class="string">&quot;logout&quot;</span>).<span class="ident">unwrap</span>();</code></pre></div>
-<p>首先我们加载动态链接库获取<code>library</code>，并通过<code>dummy()</code>创建空白的<code>Function</code>s占位，构造一个没有自引用的<code>bundle</code>。然后再
-通过<code>bundle.library</code>获取真正的<code>func_*</code>函数，将它们赋值到<code>bundle</code>中。这样就构造成功了，我们获得了一个自引用的<code>bundle</code>。
-但如果我们尝试把它移动到另一个变量中，会得到一个编译错误。Rust允许我们构造这样一个自引用结构，但不能移动它。如果用户没有
-移动<code>bundle</code>的需求，这个设计看起来就够用了。</p>
-<p>然而，由于目前Rust没有完成Placement New这样的特性，我们无法为它编写一个<code>new</code>函数，因为从<code>new</code>函数中返回它也是Move操作。
-并且，我们无法在<code>bundle</code>上调用接收<code>&amp;mut self</code>的方法，因为<code>bundle</code>的一个字段已经被借用了，这给<code>BundleService</code>的实现带
-来了更多的限制。</p>
-<h3 id="pinning"><a href="#pinning">Pinning</a></h3>
-<p>标准库提供了Pinning相关基础设施，给予我们将类型（的实例）钉死在内存中的能力。如果对Pinning有疑问，可以看一下<a href="#%E5%85%B3%E4%BA%8Epinning%E7%9A%84%E9%97%AE%E7%AD%94">这个问答</a>。
-让我们先定义一个支持Pinned的<code>BundleService</code>类型：</p>
+<ul>
+<li>首先加载动态链接库获取<code>library</code>，并通过<code>dummy()</code>创建空白的<code>Function</code>s占位，构造了一个没有自引用的<code>bundle</code>；</li>
+<li>然后通过<code>bundle.library</code>获取了真正的<code>func_*</code>函数，将它们赋值到<code>bundle</code>中，这样<code>bundle</code>就变成了一个自引用结构。</li>
+</ul>
+<p>尽管构造成功了，可一旦我们尝试把它移动到另一个变量中，就会得到一个编译错误：</p>
+<div class="example-wrap"><pre class="language-text"><code>error[E0505]: cannot move out of `bundle` because it is borrowed</code></pre></div>
+<p>这意味着：</p>
+<ul>
+<li>这个自引用结构无法被移动、修改（不暴露字段的情况下）。</li>
+<li>这个自引用结构不能有接收<code>&amp;mut self</code>的方法。</li>
+</ul>
+<p>也就是说Rust允许我们构造这样一个自引用结构，但不能移动它。这样的限制过于严格了，我们需要更加灵活的工具。</p>
+<h2 id="pinning"><a href="#pinning">Pinning</a></h2>
+<p>标准库提供了Pinning相关基础设施，给予我们将类型（的实例）钉死在内存中的能力。如果对Pinning有疑问，
+可以看一下<a href="#%E5%85%B3%E4%BA%8Epinning%E7%9A%84%E9%97%AE%E7%AD%94">这个关于Pinning的问答</a>。</p>
+<p>让我们先定义一个支持Pinned的<code>BundleService</code>类型：</p>
 
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BundleService</span> {  
     <span class="ident">library</span>: <span class="ident">Library</span>, 
@@ -55,9 +62,11 @@
     <span class="ident">func_logout</span>: <span class="ident">Function</span><span class="op">&lt;</span><span class="kw-2">*const</span> <span class="ident">Library</span>, <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span>() -&gt; <span class="ident">i32</span><span class="op">&gt;</span>,
     <span class="ident">_marker</span>: <span class="ident">PhantomPinned</span>, 
 }</code></pre></div>
-<p>我们将引用换成了裸指针，摆脱了借用规则的约束；并通过<code>PhantomPinned</code>消除了<code>Unpin</code>的自动实现，使<code>BundleService</code>能够
-真正地被<code>Pin&lt;P&gt;</code>钉死在内存中。违反别名规则（Alias Rules）是未定义行为，现在没有了借用检查器的帮助，我们应当更加小心。
-接下来让我们为它构建一个Pinned的实例：</p>
+<ul>
+<li>首先将引用换成了裸指针，摆脱了借用规则的约束；</li>
+<li>并通过<code>PhantomPinned</code>消除了<code>Unpin</code>的自动实现，使<code>BundleService</code>能够真正地被<code>Pin&lt;P&gt;</code>钉死在内存中。</li>
+</ul>
+<p>接下来让我们为它构建一个Pinned的实例：</p>
 
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">boxed</span> <span class="op">=</span> <span class="ident">Box::pin</span>(<span class="ident">BundleService</span> {
     <span class="ident">library</span>: <span class="ident">Library::open</span>(<span class="string">&quot;service.dll&quot;</span>).<span class="ident">unwrap</span>(), 
@@ -72,10 +81,14 @@
     <span class="ident">pinned</span>.<span class="ident">func_logout</span> <span class="op">=</span> <span class="ident">Function::from_raw</span>(<span class="ident">raw_lib</span>, <span class="string">&quot;logout&quot;</span>).<span class="ident">unwrap</span>();
 }
 <span class="kw">let</span> <span class="ident">bundle</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="ident">BundleService</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">boxed</span>;</code></pre></div>
-<p>我们先通过<code>dummy()</code>在堆上创建一个没有自引用的<code>bundle</code>，由于使用了<code>Box::pin</code>，此时在堆中的<code>BundleService</code>已经被钉死了。
-我们可以任意移动<code>bundle</code>这个变量，因为它只是一个指针，并且用户无法通过<code>bundle</code>移动真正的<code>BundleService</code>。然而，我们需要
-通过<code>library</code>获取真正的<code>func_*</code>，并用它们替换掉<code>dummy()</code>产生的空白函数。在这里我们通过<code>unsafe</code>实现这个目的，只要遵守
-<code>get_unchecked_mut</code>的安全约定并且不产生未定义行为即可。最终我们构造了一个Pinned且自引用的<code>bundle</code>，内存布局是这样的：</p>
+<ul>
+<li>先通过<code>Box::pin</code>在堆上创建了一个没有自引用的<code>bundle</code>。此时堆上的<code>BundleService</code>已经被钉死了。用户在Safe Rust中无法
+通过<code>bundle</code>获取一个<code>&amp;mut BundleService</code>，也就无法移动堆上的<code>BundleService</code>。</li>
+<li>然后我们通过<code>unsafe</code>获取<code>&amp;mut BundleService</code>，从<code>library</code>中获取真正的<code>func_*</code>，并用它们替换掉<code>dummy()</code>产生的空白函数
+完成对<code>bundle</code>的初始化。</li>
+</ul>
+<p>只要遵守<code>get_unchecked_mut</code>的安全约定并且不产生未定义行为，我们在这里使用<code>unsafe</code>是安全的。
+最终我们构造了一个Pinned且自引用的<code>bundle</code>，内存布局是这样的：</p>
 <div class="example-wrap"><pre class="language-text"><code>+--------+-------
 | bundle |  ...
 +--------+-------
@@ -91,7 +104,7 @@
 堆分配的开销，在用户侧构造<code>Pin&lt;&amp;mut BundleService&gt;</code>将<code>BundleService</code>钉死在调用栈中也是可行的，但这会更
 棘手一些。</p>
 <p>其实<code>Pin&lt;P&gt;</code>不太适合我们的场景，它是为Async Rust设计的，目的是将引用或指针从一段Unsafe代码（如：异步运行时的内部实现）
-通过一段未知的用户代码传递到另一段Unsafe代码（如：编译器为异步函数实现<code>Future</code>时生成的代码）时，保证「指向的值在内存中
+通过一段未知的用户代码传递到另一段Unsafe代码（如：编译器为异步函数实现<code>Future</code>时生成的代码）中时，保证「指向的值在内存中
 位置不会改变」的承诺不会被未知的用户代码破坏。</p>
 <h2 id="通过堆分配消除自引用"><a href="#通过堆分配消除自引用">通过堆分配消除自引用</a></h2>
 <p>事实上，只要不把指针暴露给用户，仅需将被引用的数据放在堆中，就不会形成自引用了。想象这样一种内存布局：</p>
@@ -104,28 +117,65 @@
 +---------+
 | library |
 +---------+</code></pre></div>
-<p>我们可以选择使用裸指针实现它：</p>
+<p>类似于Pinning的方案，在这种设计中，移动<code>BundleService</code>并不会造成引用失效。</p>
+<p>我们可以选择通过<code>Box::into_raw</code>实现这个方案：</p>
 
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BundleService</span> {  
     <span class="ident">library</span>: <span class="kw-2">*const</span> <span class="ident">Library</span>, 
     <span class="ident">func_login</span>: <span class="ident">Function</span><span class="op">&lt;</span><span class="kw-2">*const</span> <span class="ident">Library</span>, <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span>(<span class="kw-2">*const</span> <span class="ident">c_void</span>) -&gt; <span class="ident">i32</span><span class="op">&gt;</span>,
     <span class="ident">func_logout</span>: <span class="ident">Function</span><span class="op">&lt;</span><span class="kw-2">*const</span> <span class="ident">Library</span>, <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span>() -&gt; <span class="ident">i32</span><span class="op">&gt;</span>,
+}
+<span class="kw">impl</span> <span class="ident">BundleService</span> {
+    <span class="kw">fn</span> <span class="ident">new</span>() -&gt; <span class="self">Self</span> {
+        <span class="kw">let</span> <span class="ident">library</span> <span class="op">=</span> <span class="ident">Box::into_raw</span>(<span class="ident">Box::new</span>(<span class="ident">Library::open</span>(<span class="string">&quot;service.dll&quot;</span>).<span class="ident">unwrap</span>()))
+            <span class="kw">as</span> <span class="kw-2">*const</span> <span class="kw">_</span>;
+        <span class="self">Self</span> {
+            <span class="ident">library</span>: <span class="ident">library</span>, 
+            <span class="ident">func_login</span>: <span class="kw">unsafe</span> { <span class="ident">Function::from_raw</span>(<span class="ident">library</span>, <span class="string">&quot;login&quot;</span>).<span class="ident">unwrap</span>() },
+            <span class="ident">func_logout</span>: <span class="kw">unsafe</span> { <span class="ident">Function::from_raw</span>(<span class="ident">library</span>, <span class="string">&quot;logout&quot;</span>).<span class="ident">unwrap</span>() },
+        }
+    }
 }</code></pre></div>
-<p>创建一个<code>Box&lt;Library&gt;</code>，通过<code>Box::into_raw</code>将其转换为裸指针，便可以在<code>func_*</code>中共享<code>Library</code>了。
-最后我们在<code>BundleService</code>的<code>drop</code>实现中通过<code>Box::from_raw</code>取回<code>Box</code>，它会在离开作用域后释放堆上
-的<code>Library</code>。</p>
-<p>也可以选择使用引用计数实现它：</p>
+<ul>
+<li>创建一个<code>Box&lt;Library&gt;</code>，通过<code>Box::into_raw</code>将其转换为裸指针，便可以在<code>func_*</code>中共享<code>Library</code>了。 </li>
+</ul>
+<p>当然，也不要忘了回收资源，否则会造成内存泄漏：</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">impl</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">BundleService</span> {
+    <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
+        <span class="kw">let</span> <span class="ident">_library</span> <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">Box::from_raw</span>(<span class="self">self</span>.<span class="ident">library</span> <span class="kw">as</span> <span class="kw-2">*mut</span> <span class="ident">Library</span>) };
+        <span class="self">self</span>.<span class="ident">func_login</span> <span class="op">=</span> <span class="ident">Function::dummy</span>();
+        <span class="self">self</span>.<span class="ident">func_logout</span> <span class="op">=</span> <span class="ident">Function::dummy</span>();
+    }
+}</code></pre></div>
+<ul>
+<li>在<code>BundleService</code>的<code>drop</code>实现中通过<code>Box::from_raw</code>取回<code>Box&lt;Library&gt;</code>，它会在离开作用域后释放堆上的<code>Library</code>。</li>
+<li>在<code>_library</code>被释放前，先释放<code>func_*</code>，保证被引用的<code>Library</code>的生命周期严格长于引用它的<code>Function</code>s。</li>
+</ul>
+<hr />
+<p>也可以选择使用引用计数实现这个方案：</p>
 
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BundleService</span> {  
     <span class="ident">library</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">Library</span><span class="op">&gt;</span>, 
     <span class="ident">func_login</span>: <span class="ident">Function</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">Library</span><span class="op">&gt;</span>, <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span>(<span class="kw-2">*const</span> <span class="ident">c_void</span>) -&gt; <span class="ident">i32</span><span class="op">&gt;</span>,
     <span class="ident">func_logout</span>: <span class="ident">Function</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">Library</span><span class="op">&gt;</span>, <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span>() -&gt; <span class="ident">i32</span><span class="op">&gt;</span>,
+}
+<span class="kw">impl</span> <span class="ident">BundleService</span> {
+    <span class="kw">fn</span> <span class="ident">new</span>() -&gt; <span class="self">Self</span> {
+        <span class="kw">let</span> <span class="ident">library</span> <span class="op">=</span> <span class="ident">Rc::new</span>(<span class="ident">Library::open</span>(<span class="string">&quot;service.dll&quot;</span>).<span class="ident">unwrap</span>());
+        <span class="self">Self</span> {
+            <span class="ident">library</span>: <span class="ident">library</span>.<span class="ident">clone</span>(), 
+            <span class="ident">func_login</span>: <span class="ident">Function::from_ref</span>(<span class="ident">library</span>.<span class="ident">clone</span>(), <span class="string">&quot;login&quot;</span>).<span class="ident">unwrap</span>(),
+            <span class="ident">func_logout</span>: <span class="ident">Function::from_ref</span>(<span class="ident">library</span>.<span class="ident">clone</span>(), <span class="string">&quot;logout&quot;</span>).<span class="ident">unwrap</span>(),
+        }
+    }
 }</code></pre></div>
-<p>使用裸指针需要用到<code>unsafe</code>，带来了更大的心智负担；使用引用计数更轻松一些，但带来了额外的性能惩罚。</p>
+<p>使用引用计数就不再需要手动释放资源了，也避免了使用<code>unsafe</code>，只是会带来一定的运行时开销。不过比起操纵裸指针带来的风险与
+心智负担，引用计数微不足道的开销通常都是能够接受的。</p>
 <h2 id="成熟的解决方案"><a href="#成熟的解决方案">成熟的解决方案</a></h2>
 <p>在C++中处理自引用结构会比较轻松，由于存在移动构造函数，类型的设计者可以在自引用结构被移动时更新类型中存在的指针。
-在Rust中处理自引用结构是比较麻烦的，但存在许多针对自引用结构的库，允许我们避开<code>unsafe</code>高效地实现自己的自引用结构。
-譬如rental就有一个相似的例子：</p>
+在Rust中处理自引用结构是比较麻烦的，但也存在许多针对自引用结构的库，允许我们避开<code>unsafe</code>方便地实现自己的自引用结构。</p>
+<p>譬如<a href="https://docs.rs/rental/0.5.6/rental/index.html#example">rental</a>就有一个相似的例子：</p>
 
 <div class='information'><div class='tooltip ignore'>ⓘ</div></div><div class="example-wrap"><pre class="rust rust-example-rendered ignore"><code><span class="macro">rental!</span> {
     <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">rent_libloading</span> {
@@ -149,29 +199,38 @@
     };
 }</code></pre></div>
 <p>简直方便极了有木有！</p>
-<h3 id="结语"><a href="#结语">结语</a></h3>
+<h2 id="结语"><a href="#结语">结语</a></h2>
 <p>一方面，还是建议使用成熟的库，上文出现的Unsafe实现们作为参考就好。另一方面，可以考虑一下真的需要自引用结构吗？许多时候
 自引用结构也可以拆开封装，向用户暴露两个结构可能能够提供更多的灵活性呢。</p>
+<hr />
 <h3 id="关于pinning的问答"><a href="#关于pinning的问答">关于Pinning的问答</a></h3>
 <ol>
 <li>Rust提供了默认的移动语义，不考虑Copy的情况下，类型（的实例）都是可以Move的。对此<code>Pin&lt;P&gt;</code>也不例外，为何它能阻止用户Move
 一个变量呢？</li>
 </ol>
+<blockquote>
 <p>关键就在于<code>P</code>，它不是我们想钉死在内存中的那个类型，而是对应类型的指针。Safe Rust中的可变性总是独占的，<code>Pin&lt;P&gt;</code>阻止用户从<code>P</code>中
 获取<code>&amp;mut T</code>，那么用户便无法修改<code>P</code>指向的<code>T</code>——失去了Move的能力。</p>
+</blockquote>
 <ol start="2">
 <li>那这样类型<code>T</code>的设计者怎么执行那些不移动<code>T</code>，但是需要<code>&amp;mut T</code>的操作呢？</li>
 </ol>
+<blockquote>
 <p>答案不是很优雅，<code>Pin&lt;P&gt;</code>提供了一些工具函数执行这样的操作，但更普遍的是通过<code>unsafe</code>获取<code>&amp;mut T</code>完成相关操作，健全性由类型的设计者保证。</p>
+</blockquote>
 <ol start="3">
 <li>用户等到<code>Pin&lt;P&gt;</code>离开作用域后，移动原变量，然后再构造一个<code>Pin&lt;P&gt;</code>，不就绕过Pinning的约束了吗？</li>
 </ol>
+<blockquote>
 <p>对于<code>Pin&lt;Box&lt;T&gt;&gt;</code>来说不存在这个问题，因为<code>Box&lt;T&gt;</code>是访问其指向的数据的唯一方式。对于普通的引用而言，这个顾虑是存在的，所以对变量直接
 构造一个<code>P&lt;&amp;mut T&gt;</code>需要<code>unsafe</code>，健全性由用户自行保证。</p>
+</blockquote>
 <ol start="4">
-<li>将变量钉死是通过别名规则（Alias Rules）实现的，修改钉死的变量是通过<code>unsafe</code>实现的，那<code>Pin&lt;P&gt;</code>存在的意义是什么呢？</li>
+<li>将变量钉死是通过借用规则实现的，修改钉死的变量是通过<code>unsafe</code>实现的，那<code>Pin&lt;P&gt;</code>存在的意义是什么呢？</li>
 </ol>
+<blockquote>
 <p><code>Pin&lt;P&gt;</code>提供一种保证，将「值在内存中的位置不再改变」的承诺在两段<code>unsafe</code>代码间的用户代码中传递，基本上是针对Async Rust设计的。</p>
+</blockquote>
 <p><a href="#pinning">回到Pinning一节</a></p>
 </div></details><h2 id="modules" class="small-section-header"><a href="#modules">Modules</a></h2>
 <div class="item-table"><div class="item-row"><div class="item-left module-item"><a class="mod" href="error/index.html" title="self_ref_in_rust::error mod">error</a></div><div class="item-right docblock-short"><p>声明错误类型。</p>

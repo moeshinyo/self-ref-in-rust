@@ -4,7 +4,7 @@
     </nav>
     <nav class="sidebar"><a class="sidebar-logo" href="../self_ref_in_rust/index.html"><div class="logo-container"><img class="rust-logo" src="../rust-logo.svg" alt="logo"></div>
         </a><h2 class="location"><a href="#">Crate self_ref_in_rust</a></h2><div class="sidebar-elems"><div class="block"><ul><li class="version">Version 0.1.0</li><li><a id="all-types" href="all.html">All Items</a></li></div></ul><section><div class="block"><ul><li><a href="#modules">Modules</a></li></ul></div></section><div id="sidebar-vars" data-name="self_ref_in_rust" data-ty="mod" data-relpath=""></div><script defer src="sidebar-items.js"></script></div></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../self_ref_in_rust/index.html"><img class="rust-logo" src="../rust-logo.svg" alt="logo"></a><nav class="sub"><div class="theme-picker hidden"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="22" height="22" alt="Pick another theme!" src="../brush.svg"></button><div id="theme-choices" role="menu"></div></div><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../wheel.svg"></a></div></form></nav></div><section id="main-content" class="content"><div class="main-heading">
-    <h1 class="fqn"><span class="in-band">Crate <a class="mod" href="#">self_ref_in_rust</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span></h1><span class="out-of-band"><a class="srclink" href="../src/self_ref_in_rust/lib.rs.html#1-318">source</a> · <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span></div><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="引子"><a href="#引子">引子</a></h2>
+    <h1 class="fqn"><span class="in-band">Crate <a class="mod" href="#">self_ref_in_rust</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span></h1><span class="out-of-band"><a class="srclink" href="../src/self_ref_in_rust/lib.rs.html#1-328">source</a> · <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span></div><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="引子"><a href="#引子">引子</a></h2>
 <p>最近一位朋友遇到了这样一个问题：设计类型时，将具有引用关系的两个类型“打包”到同一个结构体中，产生了难以解决的编译错误。
 社区中也常常有同学问遇到类似的问题，在这篇文章中我们将从零开始，探究该如何设计这类自引用的类型，并逐步改进我们的设计。</p>
 <p>想象这样一个场景：在设计一个运行时调用动态链接库中的API的接口时，需要先加载动态链接库获得一个<code>Library</code>结构，
@@ -47,7 +47,7 @@
 <div class="example-wrap"><pre class="language-text"><code>error[E0505]: cannot move out of `bundle` because it is borrowed</code></pre></div>
 <p>这意味着：</p>
 <ul>
-<li>这个自引用结构无法被移动、修改（不暴露字段的情况下）。</li>
+<li>这个自引用结构无法被移动、修改（不暴露字段的情况下）；</li>
 <li>这个自引用结构不能有接收<code>&amp;mut self</code>的方法。</li>
 </ul>
 <p>也就是说Rust允许我们构造这样一个自引用结构，但不能移动它。这样的限制过于严格了，我们需要更加灵活的工具。</p>
@@ -68,19 +68,23 @@
 </ul>
 <p>接下来让我们为它构建一个Pinned的实例：</p>
 
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">boxed</span> <span class="op">=</span> <span class="ident">Box::pin</span>(<span class="ident">BundleService</span> {
-    <span class="ident">library</span>: <span class="ident">Library::open</span>(<span class="string">&quot;service.dll&quot;</span>).<span class="ident">unwrap</span>(), 
-    <span class="ident">func_login</span>: <span class="ident">Function::dummy</span>(), 
-    <span class="ident">func_logout</span>: <span class="ident">Function::dummy</span>(), 
-    <span class="ident">_marker</span>: <span class="ident">PhantomPinned</span>, 
-});
-<span class="kw">unsafe</span> {
-    <span class="kw">let</span> <span class="ident">pinned</span> <span class="op">=</span> <span class="ident">Pin::get_unchecked_mut</span>(<span class="ident">Pin::as_mut</span>(<span class="kw-2">&amp;mut</span> <span class="ident">boxed</span>));
-    <span class="kw">let</span> <span class="ident">raw_lib</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">pinned</span>.<span class="ident">library</span> <span class="kw">as</span> <span class="kw-2">*const</span> <span class="ident">Library</span>;
-    <span class="ident">pinned</span>.<span class="ident">func_login</span> <span class="op">=</span> <span class="ident">Function::from_raw</span>(<span class="ident">raw_lib</span>, <span class="string">&quot;login&quot;</span>).<span class="ident">unwrap</span>();
-    <span class="ident">pinned</span>.<span class="ident">func_logout</span> <span class="op">=</span> <span class="ident">Function::from_raw</span>(<span class="ident">raw_lib</span>, <span class="string">&quot;logout&quot;</span>).<span class="ident">unwrap</span>();
-}
-<span class="kw">let</span> <span class="ident">bundle</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="ident">BundleService</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">boxed</span>;</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">impl</span> <span class="ident">BundleService</span> {
+    <span class="kw">fn</span> <span class="ident">new</span>() -&gt; <span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">boxed</span> <span class="op">=</span> <span class="ident">Box::pin</span>(<span class="ident">BundleService</span> {
+            <span class="ident">library</span>: <span class="ident">Library::open</span>(<span class="string">&quot;service.dll&quot;</span>).<span class="ident">unwrap</span>(), 
+            <span class="ident">func_login</span>: <span class="ident">Function::dummy</span>(), 
+            <span class="ident">func_logout</span>: <span class="ident">Function::dummy</span>(), 
+            <span class="ident">_marker</span>: <span class="ident">PhantomPinned</span>, 
+        });
+        <span class="kw">unsafe</span> {
+            <span class="kw">let</span> <span class="ident">pinned</span> <span class="op">=</span> <span class="ident">Pin::get_unchecked_mut</span>(<span class="ident">Pin::as_mut</span>(<span class="kw-2">&amp;mut</span> <span class="ident">boxed</span>));
+            <span class="kw">let</span> <span class="ident">raw_lib</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">pinned</span>.<span class="ident">library</span> <span class="kw">as</span> <span class="kw-2">*const</span> <span class="ident">Library</span>;
+            <span class="ident">pinned</span>.<span class="ident">func_login</span> <span class="op">=</span> <span class="ident">Function::from_raw</span>(<span class="ident">raw_lib</span>, <span class="string">&quot;login&quot;</span>).<span class="ident">unwrap</span>();
+            <span class="ident">pinned</span>.<span class="ident">func_logout</span> <span class="op">=</span> <span class="ident">Function::from_raw</span>(<span class="ident">raw_lib</span>, <span class="string">&quot;logout&quot;</span>).<span class="ident">unwrap</span>();
+        }
+        <span class="ident">boxed</span>
+    }
+}</code></pre></div>
 <ul>
 <li>先通过<code>Box::pin</code>在堆上创建了一个没有自引用的<code>bundle</code>。此时堆上的<code>BundleService</code>已经被钉死了。用户在Safe Rust中无法
 通过<code>bundle</code>获取一个<code>&amp;mut BundleService</code>，也就无法移动堆上的<code>BundleService</code>。</li>
@@ -88,7 +92,8 @@
 完成对<code>bundle</code>的初始化。</li>
 </ul>
 <p>只要遵守<code>get_unchecked_mut</code>的安全约定并且不产生未定义行为，我们在这里使用<code>unsafe</code>是安全的。
-最终我们构造了一个Pinned且自引用的<code>bundle</code>，内存布局是这样的：</p>
+最终我们构造了一个<code>bundle</code>，它能够被自由移动，但它指向的<code>BundleService</code>被钉死在了内存中。</p>
+<p>内存布局是这样的：</p>
 <div class="example-wrap"><pre class="language-text"><code>+--------+-------
 | bundle |  ...
 +--------+-------
@@ -100,14 +105,16 @@
 +---------+------------+-------------+
     Λ           |             |
     +-----------+-------------+</code></pre></div>
-<p>现在要实现<code>new</code>函数就很简单了，我们只需将这个构建好的<code>bundle</code>返回即可。这里使用<code>Box</code>只是因为方便，如果介意
-堆分配的开销，在用户侧构造<code>Pin&lt;&amp;mut BundleService&gt;</code>将<code>BundleService</code>钉死在调用栈中也是可行的，但这会更
-棘手一些。</p>
+<p>这里使用<code>Box</code>只是因为方便，如果介意堆分配的开销，在用户侧构造<code>Pin&lt;&amp;mut BundleService&gt;</code>将<code>BundleService</code>
+钉死在调用栈中也是可行的，但这会更棘手一些。</p>
+<hr />
 <p>其实<code>Pin&lt;P&gt;</code>不太适合我们的场景，它是为Async Rust设计的，目的是将引用或指针从一段Unsafe代码（如：异步运行时的内部实现）
 通过一段未知的用户代码传递到另一段Unsafe代码（如：编译器为异步函数实现<code>Future</code>时生成的代码）中时，保证「指向的值在内存中
 位置不会改变」的承诺不会被未知的用户代码破坏。</p>
 <h2 id="通过堆分配消除自引用"><a href="#通过堆分配消除自引用">通过堆分配消除自引用</a></h2>
-<p>事实上，只要不把指针暴露给用户，仅需将被引用的数据放在堆中，就不会形成自引用了。想象这样一种内存布局：</p>
+<p>基于Pinning的方案的确实现了我们的目标，但由于应用场景的差异，它做了许多没有必要的事。
+事实上，只要不把指针暴露给用户，仅需将被引用的数据放在堆中，就不会形成自引用了。</p>
+<p>想象这样一种内存布局：</p>
 <div class="example-wrap"><pre class="language-text"><code>+-------BundleService------+-------
 | func_login | func_logout |  ...
 +------------+-------------+-------

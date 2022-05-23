@@ -323,6 +323,16 @@
 <span id="318">318</span>
 <span id="319">319</span>
 <span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
 </pre><pre class="rust"><code><span class="doccomment">//! # 引子</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! 最近一位朋友遇到了这样一个问题：设计类型时，将具有引用关系的两个类型“打包”到同一个结构体中，产生了难以解决的编译错误。</span>
@@ -395,7 +405,7 @@
 <span class="doccomment">//! </span>
 <span class="doccomment">//! 这意味着：</span>
 <span class="doccomment">//! </span>
-<span class="doccomment">//! - 这个自引用结构无法被移动、修改（不暴露字段的情况下）。</span>
+<span class="doccomment">//! - 这个自引用结构无法被移动、修改（不暴露字段的情况下）；</span>
 <span class="doccomment">//! - 这个自引用结构不能有接收`&amp;mut self`的方法。</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! 也就是说Rust允许我们构造这样一个自引用结构，但不能移动它。这样的限制过于严格了，我们需要更加灵活的工具。</span>
@@ -433,19 +443,23 @@
 <span class="doccomment">//! #     func_logout: Function&lt;*const Library, extern &quot;C&quot; fn() -&gt; i32&gt;,</span>
 <span class="doccomment">//! #     _marker: PhantomPinned, </span>
 <span class="doccomment">//! # }</span>
-<span class="doccomment">//! let mut boxed = Box::pin(BundleService {</span>
-<span class="doccomment">//!     library: Library::open(&quot;service.dll&quot;).unwrap(), </span>
-<span class="doccomment">//!     func_login: Function::dummy(), </span>
-<span class="doccomment">//!     func_logout: Function::dummy(), </span>
-<span class="doccomment">//!     _marker: PhantomPinned, </span>
-<span class="doccomment">//! });</span>
-<span class="doccomment">//! unsafe {</span>
-<span class="doccomment">//!     let pinned = Pin::get_unchecked_mut(Pin::as_mut(&amp;mut boxed));</span>
-<span class="doccomment">//!     let raw_lib = &amp;pinned.library as *const Library;</span>
-<span class="doccomment">//!     pinned.func_login = Function::from_raw(raw_lib, &quot;login&quot;).unwrap();</span>
-<span class="doccomment">//!     pinned.func_logout = Function::from_raw(raw_lib, &quot;logout&quot;).unwrap();</span>
+<span class="doccomment">//! impl BundleService {</span>
+<span class="doccomment">//!     fn new() -&gt; Pin&lt;Box&lt;Self&gt;&gt; {</span>
+<span class="doccomment">//!         let mut boxed = Box::pin(BundleService {</span>
+<span class="doccomment">//!             library: Library::open(&quot;service.dll&quot;).unwrap(), </span>
+<span class="doccomment">//!             func_login: Function::dummy(), </span>
+<span class="doccomment">//!             func_logout: Function::dummy(), </span>
+<span class="doccomment">//!             _marker: PhantomPinned, </span>
+<span class="doccomment">//!         });</span>
+<span class="doccomment">//!         unsafe {</span>
+<span class="doccomment">//!             let pinned = Pin::get_unchecked_mut(Pin::as_mut(&amp;mut boxed));</span>
+<span class="doccomment">//!             let raw_lib = &amp;pinned.library as *const Library;</span>
+<span class="doccomment">//!             pinned.func_login = Function::from_raw(raw_lib, &quot;login&quot;).unwrap();</span>
+<span class="doccomment">//!             pinned.func_logout = Function::from_raw(raw_lib, &quot;logout&quot;).unwrap();</span>
+<span class="doccomment">//!         }</span>
+<span class="doccomment">//!         boxed</span>
+<span class="doccomment">//!     }</span>
 <span class="doccomment">//! }</span>
-<span class="doccomment">//! let bundle: Pin&lt;Box&lt;BundleService&gt;&gt; = boxed;</span>
 <span class="doccomment">//! ```</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! - 先通过`Box::pin`在堆上创建了一个没有自引用的`bundle`。此时堆上的`BundleService`已经被钉死了。用户在Safe Rust中无法</span>
@@ -454,7 +468,9 @@
 <span class="doccomment">//!   完成对`bundle`的初始化。</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! 只要遵守`get_unchecked_mut`的安全约定并且不产生未定义行为，我们在这里使用`unsafe`是安全的。</span>
-<span class="doccomment">//! 最终我们构造了一个Pinned且自引用的`bundle`，内存布局是这样的：</span>
+<span class="doccomment">//! 最终我们构造了一个`bundle`，它能够被自由移动，但它指向的`BundleService`被钉死在了内存中。</span>
+<span class="doccomment">//! </span>
+<span class="doccomment">//! 内存布局是这样的：</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! ``` text</span>
 <span class="doccomment">//! +--------+-------</span>
@@ -470,9 +486,10 @@
 <span class="doccomment">//!     +-----------+-------------+</span>
 <span class="doccomment">//! ```</span>
 <span class="doccomment">//! </span>
-<span class="doccomment">//! 现在要实现`new`函数就很简单了，我们只需将这个构建好的`bundle`返回即可。这里使用`Box`只是因为方便，如果介意</span>
-<span class="doccomment">//! 堆分配的开销，在用户侧构造`Pin&lt;&amp;mut BundleService&gt;`将`BundleService`钉死在调用栈中也是可行的，但这会更</span>
-<span class="doccomment">//! 棘手一些。</span>
+<span class="doccomment">//! 这里使用`Box`只是因为方便，如果介意堆分配的开销，在用户侧构造`Pin&lt;&amp;mut BundleService&gt;`将`BundleService`</span>
+<span class="doccomment">//! 钉死在调用栈中也是可行的，但这会更棘手一些。</span>
+<span class="doccomment">//! </span>
+<span class="doccomment">//! ---</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! 其实`Pin&lt;P&gt;`不太适合我们的场景，它是为Async Rust设计的，目的是将引用或指针从一段Unsafe代码（如：异步运行时的内部实现）</span>
 <span class="doccomment">//! 通过一段未知的用户代码传递到另一段Unsafe代码（如：编译器为异步函数实现`Future`时生成的代码）中时，保证「指向的值在内存中</span>
@@ -481,7 +498,10 @@
 <span class="doccomment">//! </span>
 <span class="doccomment">//! # 通过堆分配消除自引用</span>
 <span class="doccomment">//! </span>
-<span class="doccomment">//! 事实上，只要不把指针暴露给用户，仅需将被引用的数据放在堆中，就不会形成自引用了。想象这样一种内存布局：</span>
+<span class="doccomment">//! 基于Pinning的方案的确实现了我们的目标，但由于应用场景的差异，它做了许多没有必要的事。</span>
+<span class="doccomment">//! 事实上，只要不把指针暴露给用户，仅需将被引用的数据放在堆中，就不会形成自引用了。</span>
+<span class="doccomment">//! </span>
+<span class="doccomment">//! 想象这样一种内存布局：</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! ``` text</span>
 <span class="doccomment">//! +-------BundleService------+-------</span>

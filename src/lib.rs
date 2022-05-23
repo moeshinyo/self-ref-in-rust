@@ -70,7 +70,7 @@
 //! 
 //! 这意味着：
 //! 
-//! - 这个自引用结构无法被移动、修改（不暴露字段的情况下）。
+//! - 这个自引用结构无法被移动、修改（不暴露字段的情况下）；
 //! - 这个自引用结构不能有接收`&mut self`的方法。
 //! 
 //! 也就是说Rust允许我们构造这样一个自引用结构，但不能移动它。这样的限制过于严格了，我们需要更加灵活的工具。
@@ -108,19 +108,23 @@
 //! #     func_logout: Function<*const Library, extern "C" fn() -> i32>,
 //! #     _marker: PhantomPinned, 
 //! # }
-//! let mut boxed = Box::pin(BundleService {
-//!     library: Library::open("service.dll").unwrap(), 
-//!     func_login: Function::dummy(), 
-//!     func_logout: Function::dummy(), 
-//!     _marker: PhantomPinned, 
-//! });
-//! unsafe {
-//!     let pinned = Pin::get_unchecked_mut(Pin::as_mut(&mut boxed));
-//!     let raw_lib = &pinned.library as *const Library;
-//!     pinned.func_login = Function::from_raw(raw_lib, "login").unwrap();
-//!     pinned.func_logout = Function::from_raw(raw_lib, "logout").unwrap();
+//! impl BundleService {
+//!     fn new() -> Pin<Box<Self>> {
+//!         let mut boxed = Box::pin(BundleService {
+//!             library: Library::open("service.dll").unwrap(), 
+//!             func_login: Function::dummy(), 
+//!             func_logout: Function::dummy(), 
+//!             _marker: PhantomPinned, 
+//!         });
+//!         unsafe {
+//!             let pinned = Pin::get_unchecked_mut(Pin::as_mut(&mut boxed));
+//!             let raw_lib = &pinned.library as *const Library;
+//!             pinned.func_login = Function::from_raw(raw_lib, "login").unwrap();
+//!             pinned.func_logout = Function::from_raw(raw_lib, "logout").unwrap();
+//!         }
+//!         boxed
+//!     }
 //! }
-//! let bundle: Pin<Box<BundleService>> = boxed;
 //! ```
 //! 
 //! - 先通过`Box::pin`在堆上创建了一个没有自引用的`bundle`。此时堆上的`BundleService`已经被钉死了。用户在Safe Rust中无法
@@ -129,7 +133,9 @@
 //!   完成对`bundle`的初始化。
 //! 
 //! 只要遵守`get_unchecked_mut`的安全约定并且不产生未定义行为，我们在这里使用`unsafe`是安全的。
-//! 最终我们构造了一个Pinned且自引用的`bundle`，内存布局是这样的：
+//! 最终我们构造了一个`bundle`，它能够被自由移动，但它指向的`BundleService`被钉死在了内存中。
+//! 
+//! 内存布局是这样的：
 //! 
 //! ``` text
 //! +--------+-------
@@ -145,9 +151,10 @@
 //!     +-----------+-------------+
 //! ```
 //! 
-//! 现在要实现`new`函数就很简单了，我们只需将这个构建好的`bundle`返回即可。这里使用`Box`只是因为方便，如果介意
-//! 堆分配的开销，在用户侧构造`Pin<&mut BundleService>`将`BundleService`钉死在调用栈中也是可行的，但这会更
-//! 棘手一些。
+//! 这里使用`Box`只是因为方便，如果介意堆分配的开销，在用户侧构造`Pin<&mut BundleService>`将`BundleService`
+//! 钉死在调用栈中也是可行的，但这会更棘手一些。
+//! 
+//! ---
 //! 
 //! 其实`Pin<P>`不太适合我们的场景，它是为Async Rust设计的，目的是将引用或指针从一段Unsafe代码（如：异步运行时的内部实现）
 //! 通过一段未知的用户代码传递到另一段Unsafe代码（如：编译器为异步函数实现`Future`时生成的代码）中时，保证「指向的值在内存中
@@ -156,7 +163,10 @@
 //! 
 //! # 通过堆分配消除自引用
 //! 
-//! 事实上，只要不把指针暴露给用户，仅需将被引用的数据放在堆中，就不会形成自引用了。想象这样一种内存布局：
+//! 基于Pinning的方案的确实现了我们的目标，但由于应用场景的差异，它做了许多没有必要的事。
+//! 事实上，只要不把指针暴露给用户，仅需将被引用的数据放在堆中，就不会形成自引用了。
+//! 
+//! 想象这样一种内存布局：
 //! 
 //! ``` text
 //! +-------BundleService------+-------

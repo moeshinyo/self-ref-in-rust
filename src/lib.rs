@@ -30,7 +30,8 @@
 //!     +-----------+-------------+
 //! ```
 //! 
-//! 那如果我们把`BundleService`移动到另一个内存位置，`func_*`不就指向被移动前的`library`了吗？像这样：
+//! 那如果我们把`BundleService`移动到另一个内存位置，`func_*`不就指向被移动前的`library`，变成
+//! 野指针了吗？像这样：
 //! 
 //! ``` text
 //! +---------+------------+-------------+-------+----------BundleService-------------+
@@ -40,7 +41,7 @@
 //!      +-------------------------------------------------------+-------------+
 //! ```
 //! 
-//! Rust提供了非常强的安全保证，不会允许这种事发生。让我们先构造一个`BundleService`的实例：
+//! Rust提供了非常强的安全保证，不会允许这种事发生。让我们先构造一个`BundleService`的实例看看：
 //! 
 //! ```
 //! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};
@@ -73,13 +74,14 @@
 //! - 这个自引用结构无法被移动、修改（不暴露字段的情况下）；
 //! - 这个自引用结构不能有接收`&mut self`的方法。
 //! 
-//! 也就是说Rust允许我们构造这样一个自引用结构，但不能移动它。这样的限制过于严格了，我们需要更加灵活的工具。
+//! 也就是说Rust允许我们构造这样一个自引用结构，但不能移动或直接修改它。这样的限制过于严格了，我们需要更加灵活的方案。
 //! 
 //! 
 //! # Pinning
 //! 
-//! 标准库提供了Pinning相关基础设施，给予我们将类型（的实例）“钉”在内存中的能力。如果对Pinning有疑问，
-//! 可以看一下[这个关于Pinning的问答](<#关于pinning的问答>)。
+//! 标准库提供了Pinning相关基础设施，给予我们将类型（的实例）“钉”在内存中的能力。
+//! 让我们试试基于Pinning的方案，也许灵活性会更高呢。
+//! 如果对Pinning有疑问，可以看一下这个[关于Pinning的问答](<#关于pinning的问答>)。
 //! 
 //! 让我们先定义一个支持Pinned的`BundleService`类型：
 //! 
@@ -97,7 +99,7 @@
 //! - 首先将引用换成了裸指针，摆脱了借用规则的约束；
 //! - 并通过`PhantomPinned`消除了`Unpin`的自动实现，使`BundleService`能够真正地被`Pin<P>`“钉”在内存中。
 //! 
-//! 接下来让我们为它构建一个Pinned的实例：
+//! 接下来让我们尝试为它构建一个Pinned的实例，实现`new`方法：
 //! 
 //! ```
 //! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};
@@ -110,19 +112,19 @@
 //! # }
 //! impl BundleService {
 //!     fn new() -> Pin<Box<Self>> {
-//!         let mut boxed = Box::pin(BundleService {
+//!         let mut bundle = Box::pin(BundleService {
 //!             library: Library::open("service.dll").unwrap(), 
 //!             func_login: Function::dummy(), 
 //!             func_logout: Function::dummy(), 
 //!             _marker: PhantomPinned, 
 //!         });
 //!         unsafe {
-//!             let pinned = Pin::get_unchecked_mut(Pin::as_mut(&mut boxed));
+//!             let pinned = Pin::get_unchecked_mut(Pin::as_mut(&mut bundle));
 //!             let raw_lib = &pinned.library as *const Library;
 //!             pinned.func_login = Function::from_raw(raw_lib, "login").unwrap();
 //!             pinned.func_logout = Function::from_raw(raw_lib, "logout").unwrap();
 //!         }
-//!         boxed
+//!         bundle
 //!     }
 //! }
 //! ```
@@ -133,7 +135,8 @@
 //!   完成对`bundle`的初始化。
 //! 
 //! 只要遵守`get_unchecked_mut`的安全约定并且不产生未定义行为，我们在这里使用`unsafe`是安全的。
-//! 最终我们构造了一个`bundle`，它能够被自由移动，但它指向的`BundleService`被“钉”在了内存中。
+//! 最终我们构造了一个`bundle`，它能够被自由移动，也就能够从`new`方法中返回。
+//! 它指向的`BundleService`被“钉”在了内存中，也就不用担心引用失效的问题了。
 //! 
 //! 内存布局是这样的：
 //! 

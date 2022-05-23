@@ -52,7 +52,7 @@
 </ul>
 <p>也就是说Rust允许我们构造这样一个自引用结构，但不能移动它。这样的限制过于严格了，我们需要更加灵活的工具。</p>
 <h2 id="pinning"><a href="#pinning">Pinning</a></h2>
-<p>标准库提供了Pinning相关基础设施，给予我们将类型（的实例）钉死在内存中的能力。如果对Pinning有疑问，
+<p>标准库提供了Pinning相关基础设施，给予我们将类型（的实例）“钉”在内存中的能力。如果对Pinning有疑问，
 可以看一下<a href="#%E5%85%B3%E4%BA%8Epinning%E7%9A%84%E9%97%AE%E7%AD%94">这个关于Pinning的问答</a>。</p>
 <p>让我们先定义一个支持Pinned的<code>BundleService</code>类型：</p>
 
@@ -64,7 +64,7 @@
 }</code></pre></div>
 <ul>
 <li>首先将引用换成了裸指针，摆脱了借用规则的约束；</li>
-<li>并通过<code>PhantomPinned</code>消除了<code>Unpin</code>的自动实现，使<code>BundleService</code>能够真正地被<code>Pin&lt;P&gt;</code>钉死在内存中。</li>
+<li>并通过<code>PhantomPinned</code>消除了<code>Unpin</code>的自动实现，使<code>BundleService</code>能够真正地被<code>Pin&lt;P&gt;</code>“钉”在内存中。</li>
 </ul>
 <p>接下来让我们为它构建一个Pinned的实例：</p>
 
@@ -86,13 +86,13 @@
     }
 }</code></pre></div>
 <ul>
-<li>先通过<code>Box::pin</code>在堆上创建了一个没有自引用的<code>bundle</code>。此时堆上的<code>BundleService</code>已经被钉死了。用户在Safe Rust中无法
+<li>先通过<code>Box::pin</code>在堆上创建了一个没有自引用的<code>bundle</code>。此时堆上的<code>BundleService</code>已经被“钉”住了。用户在Safe Rust中无法
 通过<code>bundle</code>获取一个<code>&amp;mut BundleService</code>，也就无法移动堆上的<code>BundleService</code>。</li>
 <li>然后我们通过<code>unsafe</code>获取<code>&amp;mut BundleService</code>，从<code>library</code>中获取真正的<code>func_*</code>，并用它们替换掉<code>dummy()</code>产生的空白函数
 完成对<code>bundle</code>的初始化。</li>
 </ul>
 <p>只要遵守<code>get_unchecked_mut</code>的安全约定并且不产生未定义行为，我们在这里使用<code>unsafe</code>是安全的。
-最终我们构造了一个<code>bundle</code>，它能够被自由移动，但它指向的<code>BundleService</code>被钉死在了内存中。</p>
+最终我们构造了一个<code>bundle</code>，它能够被自由移动，但它指向的<code>BundleService</code>被“钉”在了内存中。</p>
 <p>内存布局是这样的：</p>
 <div class="example-wrap"><pre class="language-text"><code>+--------+-------
 | bundle |  ...
@@ -106,7 +106,7 @@
     Λ           |             |
     +-----------+-------------+</code></pre></div>
 <p>这里使用<code>Box</code>只是因为方便，如果介意堆分配的开销，在用户侧构造<code>Pin&lt;&amp;mut BundleService&gt;</code>将<code>BundleService</code>
-钉死在调用栈中也是可行的，但这会更棘手一些。</p>
+“钉”在调用栈中也是可行的，但这会更棘手一些。</p>
 <hr />
 <p>其实<code>Pin&lt;P&gt;</code>不太适合我们的场景，它是为Async Rust设计的，目的是将引用或指针从一段Unsafe代码（如：异步运行时的内部实现）
 通过一段未知的用户代码传递到另一段Unsafe代码（如：编译器为异步函数实现<code>Future</code>时生成的代码）中时，保证「指向的值在内存中
@@ -216,11 +216,11 @@
 一个变量呢？</li>
 </ol>
 <blockquote>
-<p>关键就在于<code>P</code>，它不是我们想钉死在内存中的那个类型，而是对应类型的指针。Safe Rust中的可变性总是独占的，<code>Pin&lt;P&gt;</code>阻止用户从<code>P</code>中
+<p>关键在于类型<code>P</code>，它并不是我们想“钉”在内存中的那个类型，而是对应类型的指针。Safe Rust中的可变性总是独占的，<code>Pin&lt;P&gt;</code>阻止用户从<code>P</code>中
 获取<code>&amp;mut T</code>，那么用户便无法修改<code>P</code>指向的<code>T</code>——失去了Move的能力。</p>
 </blockquote>
 <ol start="2">
-<li>那这样类型<code>T</code>的设计者怎么执行那些不移动<code>T</code>，但是需要<code>&amp;mut T</code>的操作呢？</li>
+<li>那这样类型<code>T</code>的设计者怎么执行那些不移动<code>T</code>，但是需要<code>&amp;mut T</code>的修改操作呢？</li>
 </ol>
 <blockquote>
 <p>答案不是很优雅，<code>Pin&lt;P&gt;</code>提供了一些工具函数执行这样的操作，但更普遍的是通过<code>unsafe</code>获取<code>&amp;mut T</code>完成相关操作，健全性由类型的设计者保证。</p>
@@ -233,7 +233,7 @@
 构造一个<code>P&lt;&amp;mut T&gt;</code>需要<code>unsafe</code>，健全性由用户自行保证。</p>
 </blockquote>
 <ol start="4">
-<li>将变量钉死是通过借用规则实现的，修改钉死的变量是通过<code>unsafe</code>实现的，那<code>Pin&lt;P&gt;</code>存在的意义是什么呢？</li>
+<li>将变量“钉”在内存中是通过借用规则实现的，修改“钉”在内存中的变量是通过<code>unsafe</code>实现的，那<code>Pin&lt;P&gt;</code>存在的意义是什么呢？</li>
 </ol>
 <blockquote>
 <p><code>Pin&lt;P&gt;</code>提供一种保证，将「值在内存中的位置不再改变」的承诺在两段<code>unsafe</code>代码间的用户代码中传递，基本上是针对Async Rust设计的。</p>

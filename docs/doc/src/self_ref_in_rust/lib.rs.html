@@ -413,7 +413,7 @@
 <span class="doccomment">//! </span>
 <span class="doccomment">//! # Pinning</span>
 <span class="doccomment">//! </span>
-<span class="doccomment">//! 标准库提供了Pinning相关基础设施，给予我们将类型（的实例）钉死在内存中的能力。如果对Pinning有疑问，</span>
+<span class="doccomment">//! 标准库提供了Pinning相关基础设施，给予我们将类型（的实例）“钉”在内存中的能力。如果对Pinning有疑问，</span>
 <span class="doccomment">//! 可以看一下[这个关于Pinning的问答](&lt;#关于pinning的问答&gt;)。</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! 让我们先定义一个支持Pinned的`BundleService`类型：</span>
@@ -430,7 +430,7 @@
 <span class="doccomment">//! ```</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! - 首先将引用换成了裸指针，摆脱了借用规则的约束；</span>
-<span class="doccomment">//! - 并通过`PhantomPinned`消除了`Unpin`的自动实现，使`BundleService`能够真正地被`Pin&lt;P&gt;`钉死在内存中。</span>
+<span class="doccomment">//! - 并通过`PhantomPinned`消除了`Unpin`的自动实现，使`BundleService`能够真正地被`Pin&lt;P&gt;`“钉”在内存中。</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! 接下来让我们为它构建一个Pinned的实例：</span>
 <span class="doccomment">//! </span>
@@ -462,13 +462,13 @@
 <span class="doccomment">//! }</span>
 <span class="doccomment">//! ```</span>
 <span class="doccomment">//! </span>
-<span class="doccomment">//! - 先通过`Box::pin`在堆上创建了一个没有自引用的`bundle`。此时堆上的`BundleService`已经被钉死了。用户在Safe Rust中无法</span>
+<span class="doccomment">//! - 先通过`Box::pin`在堆上创建了一个没有自引用的`bundle`。此时堆上的`BundleService`已经被“钉”住了。用户在Safe Rust中无法</span>
 <span class="doccomment">//!   通过`bundle`获取一个`&amp;mut BundleService`，也就无法移动堆上的`BundleService`。</span>
 <span class="doccomment">//! - 然后我们通过`unsafe`获取`&amp;mut BundleService`，从`library`中获取真正的`func_*`，并用它们替换掉`dummy()`产生的空白函数</span>
 <span class="doccomment">//!   完成对`bundle`的初始化。</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! 只要遵守`get_unchecked_mut`的安全约定并且不产生未定义行为，我们在这里使用`unsafe`是安全的。</span>
-<span class="doccomment">//! 最终我们构造了一个`bundle`，它能够被自由移动，但它指向的`BundleService`被钉死在了内存中。</span>
+<span class="doccomment">//! 最终我们构造了一个`bundle`，它能够被自由移动，但它指向的`BundleService`被“钉”在了内存中。</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! 内存布局是这样的：</span>
 <span class="doccomment">//! </span>
@@ -487,7 +487,7 @@
 <span class="doccomment">//! ```</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! 这里使用`Box`只是因为方便，如果介意堆分配的开销，在用户侧构造`Pin&lt;&amp;mut BundleService&gt;`将`BundleService`</span>
-<span class="doccomment">//! 钉死在调用栈中也是可行的，但这会更棘手一些。</span>
+<span class="doccomment">//! “钉”在调用栈中也是可行的，但这会更棘手一些。</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! ---</span>
 <span class="doccomment">//! </span>
@@ -638,10 +638,10 @@
 <span class="doccomment">//! 1. Rust提供了默认的移动语义，不考虑Copy的情况下，类型（的实例）都是可以Move的。对此`Pin&lt;P&gt;`也不例外，为何它能阻止用户Move</span>
 <span class="doccomment">//! 一个变量呢？</span>
 <span class="doccomment">//! </span>
-<span class="doccomment">//! &gt; 关键就在于`P`，它不是我们想钉死在内存中的那个类型，而是对应类型的指针。Safe Rust中的可变性总是独占的，`Pin&lt;P&gt;`阻止用户从`P`中</span>
+<span class="doccomment">//! &gt; 关键在于类型`P`，它并不是我们想“钉”在内存中的那个类型，而是对应类型的指针。Safe Rust中的可变性总是独占的，`Pin&lt;P&gt;`阻止用户从`P`中</span>
 <span class="doccomment">//! 获取`&amp;mut T`，那么用户便无法修改`P`指向的`T`——失去了Move的能力。</span>
 <span class="doccomment">//! </span>
-<span class="doccomment">//! 2. 那这样类型`T`的设计者怎么执行那些不移动`T`，但是需要`&amp;mut T`的操作呢？</span>
+<span class="doccomment">//! 2. 那这样类型`T`的设计者怎么执行那些不移动`T`，但是需要`&amp;mut T`的修改操作呢？</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! &gt; 答案不是很优雅，`Pin&lt;P&gt;`提供了一些工具函数执行这样的操作，但更普遍的是通过`unsafe`获取`&amp;mut T`完成相关操作，健全性由类型的设计者保证。</span>
 <span class="doccomment">//! </span>
@@ -650,7 +650,7 @@
 <span class="doccomment">//! &gt; 对于`Pin&lt;Box&lt;T&gt;&gt;`来说不存在这个问题，因为`Box&lt;T&gt;`是访问其指向的数据的唯一方式。对于普通的引用而言，这个顾虑是存在的，所以对变量直接</span>
 <span class="doccomment">//! 构造一个`P&lt;&amp;mut T&gt;`需要`unsafe`，健全性由用户自行保证。</span>
 <span class="doccomment">//! </span>
-<span class="doccomment">//! 4. 将变量钉死是通过借用规则实现的，修改钉死的变量是通过`unsafe`实现的，那`Pin&lt;P&gt;`存在的意义是什么呢？</span>
+<span class="doccomment">//! 4. 将变量“钉”在内存中是通过借用规则实现的，修改“钉”在内存中的变量是通过`unsafe`实现的，那`Pin&lt;P&gt;`存在的意义是什么呢？</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! &gt; `Pin&lt;P&gt;`提供一种保证，将「值在内存中的位置不再改变」的承诺在两段`unsafe`代码间的用户代码中传递，基本上是针对Async Rust设计的。</span>
 <span class="doccomment">//! </span>

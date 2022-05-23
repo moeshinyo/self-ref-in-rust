@@ -1,0 +1,1 @@
+window.ALL_CRATES = ["self_ref_in_rust"];

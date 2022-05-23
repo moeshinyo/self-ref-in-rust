@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["self_ref_in_rust"] = [{"text":"impl Freeze for <a class=\"struct\" href=\"self_ref_in_rust/loading/struct.Library.html\" title=\"struct self_ref_in_rust::loading::Library\">Library</a>","synthetic":true,"types":["self_ref_in_rust::loading::Library"]},{"text":"impl&lt;L, F&gt; Freeze for <a class=\"struct\" href=\"self_ref_in_rust/loading/struct.Function.html\" title=\"struct self_ref_in_rust::loading::Function\">Function</a>&lt;L, F&gt;","synthetic":true,"types":["self_ref_in_rust::loading::Function"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

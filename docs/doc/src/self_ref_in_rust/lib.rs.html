@@ -333,6 +333,9 @@
 <span id="328">328</span>
 <span id="329">329</span>
 <span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
 </pre><pre class="rust"><code><span class="doccomment">//! # 引子</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! 最近一位朋友遇到了这样一个问题：设计类型时，将具有引用关系的两个类型“打包”到同一个结构体中，产生了难以解决的编译错误。</span>
@@ -365,7 +368,8 @@
 <span class="doccomment">//!     +-----------+-------------+</span>
 <span class="doccomment">//! ```</span>
 <span class="doccomment">//! </span>
-<span class="doccomment">//! 那如果我们把`BundleService`移动到另一个内存位置，`func_*`不就指向被移动前的`library`了吗？像这样：</span>
+<span class="doccomment">//! 那如果我们把`BundleService`移动到另一个内存位置，`func_*`不就指向被移动前的`library`，变成</span>
+<span class="doccomment">//! 野指针了吗？像这样：</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! ``` text</span>
 <span class="doccomment">//! +---------+------------+-------------+-------+----------BundleService-------------+</span>
@@ -375,7 +379,7 @@
 <span class="doccomment">//!      +-------------------------------------------------------+-------------+</span>
 <span class="doccomment">//! ```</span>
 <span class="doccomment">//! </span>
-<span class="doccomment">//! Rust提供了非常强的安全保证，不会允许这种事发生。让我们先构造一个`BundleService`的实例：</span>
+<span class="doccomment">//! Rust提供了非常强的安全保证，不会允许这种事发生。让我们先构造一个`BundleService`的实例看看：</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! ```</span>
 <span class="doccomment">//! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};</span>
@@ -408,13 +412,14 @@
 <span class="doccomment">//! - 这个自引用结构无法被移动、修改（不暴露字段的情况下）；</span>
 <span class="doccomment">//! - 这个自引用结构不能有接收`&amp;mut self`的方法。</span>
 <span class="doccomment">//! </span>
-<span class="doccomment">//! 也就是说Rust允许我们构造这样一个自引用结构，但不能移动它。这样的限制过于严格了，我们需要更加灵活的工具。</span>
+<span class="doccomment">//! 也就是说Rust允许我们构造这样一个自引用结构，但不能移动或直接修改它。这样的限制过于严格了，我们需要更加灵活的方案。</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! # Pinning</span>
 <span class="doccomment">//! </span>
-<span class="doccomment">//! 标准库提供了Pinning相关基础设施，给予我们将类型（的实例）“钉”在内存中的能力。如果对Pinning有疑问，</span>
-<span class="doccomment">//! 可以看一下[这个关于Pinning的问答](&lt;#关于pinning的问答&gt;)。</span>
+<span class="doccomment">//! 标准库提供了Pinning相关基础设施，给予我们将类型（的实例）“钉”在内存中的能力。</span>
+<span class="doccomment">//! 让我们试试基于Pinning的方案，也许灵活性会更高呢。</span>
+<span class="doccomment">//! 如果对Pinning有疑问，可以看一下这个[关于Pinning的问答](&lt;#关于pinning的问答&gt;)。</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! 让我们先定义一个支持Pinned的`BundleService`类型：</span>
 <span class="doccomment">//! </span>
@@ -432,7 +437,7 @@
 <span class="doccomment">//! - 首先将引用换成了裸指针，摆脱了借用规则的约束；</span>
 <span class="doccomment">//! - 并通过`PhantomPinned`消除了`Unpin`的自动实现，使`BundleService`能够真正地被`Pin&lt;P&gt;`“钉”在内存中。</span>
 <span class="doccomment">//! </span>
-<span class="doccomment">//! 接下来让我们为它构建一个Pinned的实例：</span>
+<span class="doccomment">//! 接下来让我们尝试为它构建一个Pinned的实例，实现`new`方法：</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! ```</span>
 <span class="doccomment">//! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};</span>
@@ -445,19 +450,19 @@
 <span class="doccomment">//! # }</span>
 <span class="doccomment">//! impl BundleService {</span>
 <span class="doccomment">//!     fn new() -&gt; Pin&lt;Box&lt;Self&gt;&gt; {</span>
-<span class="doccomment">//!         let mut boxed = Box::pin(BundleService {</span>
+<span class="doccomment">//!         let mut bundle = Box::pin(BundleService {</span>
 <span class="doccomment">//!             library: Library::open(&quot;service.dll&quot;).unwrap(), </span>
 <span class="doccomment">//!             func_login: Function::dummy(), </span>
 <span class="doccomment">//!             func_logout: Function::dummy(), </span>
 <span class="doccomment">//!             _marker: PhantomPinned, </span>
 <span class="doccomment">//!         });</span>
 <span class="doccomment">//!         unsafe {</span>
-<span class="doccomment">//!             let pinned = Pin::get_unchecked_mut(Pin::as_mut(&amp;mut boxed));</span>
+<span class="doccomment">//!             let pinned = Pin::get_unchecked_mut(Pin::as_mut(&amp;mut bundle));</span>
 <span class="doccomment">//!             let raw_lib = &amp;pinned.library as *const Library;</span>
 <span class="doccomment">//!             pinned.func_login = Function::from_raw(raw_lib, &quot;login&quot;).unwrap();</span>
 <span class="doccomment">//!             pinned.func_logout = Function::from_raw(raw_lib, &quot;logout&quot;).unwrap();</span>
 <span class="doccomment">//!         }</span>
-<span class="doccomment">//!         boxed</span>
+<span class="doccomment">//!         bundle</span>
 <span class="doccomment">//!     }</span>
 <span class="doccomment">//! }</span>
 <span class="doccomment">//! ```</span>
@@ -468,7 +473,8 @@
 <span class="doccomment">//!   完成对`bundle`的初始化。</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! 只要遵守`get_unchecked_mut`的安全约定并且不产生未定义行为，我们在这里使用`unsafe`是安全的。</span>
-<span class="doccomment">//! 最终我们构造了一个`bundle`，它能够被自由移动，但它指向的`BundleService`被“钉”在了内存中。</span>
+<span class="doccomment">//! 最终我们构造了一个`bundle`，它能够被自由移动，也就能够从`new`方法中返回。</span>
+<span class="doccomment">//! 它指向的`BundleService`被“钉”在了内存中，也就不用担心引用失效的问题了。</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! 内存布局是这样的：</span>
 <span class="doccomment">//! </span>

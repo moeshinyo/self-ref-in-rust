@@ -231,7 +231,7 @@
 //! }
 //! ```
 //! 
-//! - 在`BundleService`的`drop`实现中通过`Box::from_raw`取回`Box<Library>`，它会在离开作用域后释放堆上的`Library`。
+//! - 在`BundleService`的`drop`实现中通过`Box::from_raw`取回`Box<Library>`，它会在离开作用域后释放堆上的`Library`；
 //! - 在`_library`被释放前，先释放`func_*`，保证被引用的`Library`的生命周期严格长于引用它的`Function`s。
 //! 
 //! ---

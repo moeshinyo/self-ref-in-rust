@@ -160,7 +160,7 @@
     }
 }</code></pre></div>
 <ul>
-<li>在<code>BundleService</code>的<code>drop</code>实现中通过<code>Box::from_raw</code>取回<code>Box&lt;Library&gt;</code>，它会在离开作用域后释放堆上的<code>Library</code>。</li>
+<li>在<code>BundleService</code>的<code>drop</code>实现中通过<code>Box::from_raw</code>取回<code>Box&lt;Library&gt;</code>，它会在离开作用域后释放堆上的<code>Library</code>；</li>
 <li>在<code>_library</code>被释放前，先释放<code>func_*</code>，保证被引用的<code>Library</code>的生命周期严格长于引用它的<code>Function</code>s。</li>
 </ul>
 <hr />

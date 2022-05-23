@@ -336,6 +336,7 @@
 <span id="331">331</span>
 <span id="332">332</span>
 <span id="333">333</span>
+<span id="334">334</span>
 </pre><pre class="rust"><code><span class="doccomment">//! # 引子</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! 最近一位朋友遇到了这样一个问题：设计类型时，将具有引用关系的两个类型“打包”到同一个结构体中，产生了难以解决的编译错误。</span>
@@ -368,8 +369,8 @@
 <span class="doccomment">//!     +-----------+-------------+</span>
 <span class="doccomment">//! ```</span>
 <span class="doccomment">//! </span>
-<span class="doccomment">//! 那如果我们把`BundleService`移动到另一个内存位置，`func_*`不就指向被移动前的`library`，变成</span>
-<span class="doccomment">//! 野指针了吗？像这样：</span>
+<span class="doccomment">//! 那如果我们把`BundleService`移动到另一个内存位置，`func_*`中的引用不就指向被移动前的`library`，变成</span>
+<span class="doccomment">//! 悬垂引用了吗？像这样：</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! ``` text</span>
 <span class="doccomment">//! +---------+------------+-------------+-------+----------BundleService-------------+</span>
@@ -412,7 +413,8 @@
 <span class="doccomment">//! - 这个自引用结构无法被移动、修改（不暴露字段的情况下）；</span>
 <span class="doccomment">//! - 这个自引用结构不能有接收`&amp;mut self`的方法。</span>
 <span class="doccomment">//! </span>
-<span class="doccomment">//! 也就是说Rust允许我们构造这样一个自引用结构，但不能移动或直接修改它。这样的限制过于严格了，我们需要更加灵活的方案。</span>
+<span class="doccomment">//! 也就是说Rust允许我们构造这样一个自引用结构，但不能移动或直接修改它。</span>
+<span class="doccomment">//! 这样的限制过于严格了，我们需要更加灵活的方案。</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! # Pinning</span>

@@ -4,7 +4,7 @@
     </nav>
     <nav class="sidebar"><a class="sidebar-logo" href="../self_ref_in_rust/index.html"><div class="logo-container"><img class="rust-logo" src="../rust-logo.svg" alt="logo"></div>
         </a><h2 class="location"><a href="#">Crate self_ref_in_rust</a></h2><div class="sidebar-elems"><div class="block"><ul><li class="version">Version 0.1.0</li><li><a id="all-types" href="all.html">All Items</a></li></div></ul><section><div class="block"><ul><li><a href="#modules">Modules</a></li></ul></div></section><div id="sidebar-vars" data-name="self_ref_in_rust" data-ty="mod" data-relpath=""></div><script defer src="sidebar-items.js"></script></div></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../self_ref_in_rust/index.html"><img class="rust-logo" src="../rust-logo.svg" alt="logo"></a><nav class="sub"><div class="theme-picker hidden"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="22" height="22" alt="Pick another theme!" src="../brush.svg"></button><div id="theme-choices" role="menu"></div></div><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../wheel.svg"></a></div></form></nav></div><section id="main-content" class="content"><div class="main-heading">
-    <h1 class="fqn"><span class="in-band">Crate <a class="mod" href="#">self_ref_in_rust</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span></h1><span class="out-of-band"><a class="srclink" href="../src/self_ref_in_rust/lib.rs.html#1-331">source</a> · <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span></div><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="引子"><a href="#引子">引子</a></h2>
+    <h1 class="fqn"><span class="in-band">Crate <a class="mod" href="#">self_ref_in_rust</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span></h1><span class="out-of-band"><a class="srclink" href="../src/self_ref_in_rust/lib.rs.html#1-332">source</a> · <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span></div><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="引子"><a href="#引子">引子</a></h2>
 <p>最近一位朋友遇到了这样一个问题：设计类型时，将具有引用关系的两个类型“打包”到同一个结构体中，产生了难以解决的编译错误。
 社区中也常常有同学问遇到类似的问题，在这篇文章中我们将从零开始，探究该如何设计这类自引用的类型，并逐步改进我们的设计。</p>
 <p>想象这样一个场景：在设计一个运行时调用动态链接库中的API的接口时，需要先加载动态链接库获得一个<code>Library</code>结构，
@@ -24,8 +24,8 @@
 +---------+------------+-------------+-------
     Λ           |             |
     +-----------+-------------+</code></pre></div>
-<p>那如果我们把<code>BundleService</code>移动到另一个内存位置，<code>func_*</code>不就指向被移动前的<code>library</code>，变成
-野指针了吗？像这样：</p>
+<p>那如果我们把<code>BundleService</code>移动到另一个内存位置，<code>func_*</code>中的引用不就指向被移动前的<code>library</code>，变成
+悬垂引用了吗？像这样：</p>
 <div class="example-wrap"><pre class="language-text"><code>+---------+------------+-------------+-------+----------BundleService-------------+
 |         |            |             |  ...  | library | func_login | func_logout |
 +---------+------------+-------------+-------+---------+------------+-------------+
@@ -51,7 +51,8 @@
 <li>这个自引用结构无法被移动、修改（不暴露字段的情况下）；</li>
 <li>这个自引用结构不能有接收<code>&amp;mut self</code>的方法。</li>
 </ul>
-<p>也就是说Rust允许我们构造这样一个自引用结构，但不能移动或直接修改它。这样的限制过于严格了，我们需要更加灵活的方案。</p>
+<p>也就是说Rust允许我们构造这样一个自引用结构，但不能移动或直接修改它。
+这样的限制过于严格了，我们需要更加灵活的方案。</p>
 <h2 id="pinning"><a href="#pinning">Pinning</a></h2>
 <p>标准库提供了Pinning相关基础设施，给予我们将类型（的实例）“钉”在内存中的能力。
 让我们试试基于Pinning的方案，也许灵活性会更高呢。

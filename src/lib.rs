@@ -242,7 +242,6 @@
 //! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};
 //! # use std::{ffi::c_void, rc::Rc};
 //! pub struct BundleService {  
-//!     library: Rc<Library>, 
 //!     func_login: Function<Rc<Library>, extern "C" fn(*const c_void) -> i32>,
 //!     func_logout: Function<Rc<Library>, extern "C" fn() -> i32>,
 //! }
@@ -250,7 +249,6 @@
 //!     fn new() -> Self {
 //!         let library = Rc::new(Library::open("service.dll").unwrap());
 //!         Self {
-//!             library: library.clone(), 
 //!             func_login: Function::from_ref(library.clone(), "login").unwrap(),
 //!             func_logout: Function::from_ref(library.clone(), "logout").unwrap(),
 //!         }

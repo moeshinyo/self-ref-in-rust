@@ -335,8 +335,6 @@
 <span id="330">330</span>
 <span id="331">331</span>
 <span id="332">332</span>
-<span id="333">333</span>
-<span id="334">334</span>
 </pre><pre class="rust"><code><span class="doccomment">//! # 引子</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! 最近一位朋友遇到了这样一个问题：设计类型时，将具有引用关系的两个类型“打包”到同一个结构体中，产生了难以解决的编译错误。</span>
@@ -581,7 +579,6 @@
 <span class="doccomment">//! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};</span>
 <span class="doccomment">//! # use std::{ffi::c_void, rc::Rc};</span>
 <span class="doccomment">//! pub struct BundleService {  </span>
-<span class="doccomment">//!     library: Rc&lt;Library&gt;, </span>
 <span class="doccomment">//!     func_login: Function&lt;Rc&lt;Library&gt;, extern &quot;C&quot; fn(*const c_void) -&gt; i32&gt;,</span>
 <span class="doccomment">//!     func_logout: Function&lt;Rc&lt;Library&gt;, extern &quot;C&quot; fn() -&gt; i32&gt;,</span>
 <span class="doccomment">//! }</span>
@@ -589,7 +586,6 @@
 <span class="doccomment">//!     fn new() -&gt; Self {</span>
 <span class="doccomment">//!         let library = Rc::new(Library::open(&quot;service.dll&quot;).unwrap());</span>
 <span class="doccomment">//!         Self {</span>
-<span class="doccomment">//!             library: library.clone(), </span>
 <span class="doccomment">//!             func_login: Function::from_ref(library.clone(), &quot;login&quot;).unwrap(),</span>
 <span class="doccomment">//!             func_logout: Function::from_ref(library.clone(), &quot;logout&quot;).unwrap(),</span>
 <span class="doccomment">//!         }</span>

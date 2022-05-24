@@ -10,7 +10,7 @@
 //! 需求描述非常直观，简直就是把类型定义用文字写了出来，于是我们很快写出了这样一段定义：
 //! 
 //! ```
-//! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};
+//! # use self_ref_in_rust::{loading::{Library, Function}, result::Result};
 //! # use std::ffi::c_void;
 //! pub struct BundleService<'a> {  
 //!     library: Library, 
@@ -44,7 +44,7 @@
 //! Rust提供了非常强的安全保证，不会允许这种事发生。让我们先构造一个`BundleService`的实例看看：
 //! 
 //! ```
-//! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};
+//! # use self_ref_in_rust::{loading::{Library, Function}, result::Result};
 //! # use std::ffi::c_void;
 //! # pub struct BundleService<'a> { 
 //! #     library: Library, 
@@ -87,7 +87,7 @@
 //! 让我们先定义一个支持Pinned的`BundleService`类型：
 //! 
 //! ```
-//! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};
+//! # use self_ref_in_rust::{loading::{Library, Function}, result::Result};
 //! # use std::{ffi::c_void, marker::PhantomPinned};
 //! pub struct BundleService {  
 //!     library: Library, 
@@ -103,7 +103,7 @@
 //! 接下来让我们尝试为它构建一个Pinned的实例，实现`new`方法：
 //! 
 //! ```
-//! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};
+//! # use self_ref_in_rust::{loading::{Library, Function}, result::Result};
 //! # use std::{ffi::c_void, pin::Pin, marker::PhantomPinned};
 //! # pub struct BundleService { 
 //! #     library: Library, 
@@ -189,7 +189,7 @@
 //! 我们可以选择通过`Box::into_raw`实现这个方案：
 //! 
 //! ```
-//! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};
+//! # use self_ref_in_rust::{loading::{Library, Function}, result::Result};
 //! # use std::ffi::c_void;
 //! pub struct BundleService {  
 //!     library: *const Library, 
@@ -215,7 +215,7 @@
 //! 
 //! 
 //! ```
-//! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};
+//! # use self_ref_in_rust::{loading::{Library, Function}, result::Result};
 //! # use std::ffi::c_void;
 //! # pub struct BundleService {  
 //! #     library: *const Library, 
@@ -239,7 +239,7 @@
 //! 也可以选择使用引用计数实现这个方案：
 //! 
 //! ```
-//! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};
+//! # use self_ref_in_rust::{loading::{Library, Function}, result::Result};
 //! # use std::{ffi::c_void, rc::Rc};
 //! pub struct BundleService {  
 //!     func_login: Function<Rc<Library>, extern "C" fn(*const c_void) -> i32>,
@@ -325,7 +325,7 @@
 
 
 pub mod loading;
-pub mod error;
+pub mod result;
 #[allow(dead_code)]
 mod factory;
 

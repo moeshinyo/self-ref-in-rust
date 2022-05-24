@@ -1,7 +1,7 @@
 //! 
 //! 提供加载动态链接库并获取函数的接口。
 
-use crate::error::Result;
+use crate::result::Result;
 use std::{path::Path, marker::PhantomData, borrow::Borrow};
 
 /// 表示一个已加载的动态链接库。

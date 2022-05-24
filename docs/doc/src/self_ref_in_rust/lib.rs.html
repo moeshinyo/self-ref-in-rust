@@ -347,7 +347,7 @@
 <span class="doccomment">//! 需求描述非常直观，简直就是把类型定义用文字写了出来，于是我们很快写出了这样一段定义：</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! ```</span>
-<span class="doccomment">//! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};</span>
+<span class="doccomment">//! # use self_ref_in_rust::{loading::{Library, Function}, result::Result};</span>
 <span class="doccomment">//! # use std::ffi::c_void;</span>
 <span class="doccomment">//! pub struct BundleService&lt;&#39;a&gt; {  </span>
 <span class="doccomment">//!     library: Library, </span>
@@ -381,7 +381,7 @@
 <span class="doccomment">//! Rust提供了非常强的安全保证，不会允许这种事发生。让我们先构造一个`BundleService`的实例看看：</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! ```</span>
-<span class="doccomment">//! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};</span>
+<span class="doccomment">//! # use self_ref_in_rust::{loading::{Library, Function}, result::Result};</span>
 <span class="doccomment">//! # use std::ffi::c_void;</span>
 <span class="doccomment">//! # pub struct BundleService&lt;&#39;a&gt; { </span>
 <span class="doccomment">//! #     library: Library, </span>
@@ -424,7 +424,7 @@
 <span class="doccomment">//! 让我们先定义一个支持Pinned的`BundleService`类型：</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! ```</span>
-<span class="doccomment">//! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};</span>
+<span class="doccomment">//! # use self_ref_in_rust::{loading::{Library, Function}, result::Result};</span>
 <span class="doccomment">//! # use std::{ffi::c_void, marker::PhantomPinned};</span>
 <span class="doccomment">//! pub struct BundleService {  </span>
 <span class="doccomment">//!     library: Library, </span>
@@ -440,7 +440,7 @@
 <span class="doccomment">//! 接下来让我们尝试为它构建一个Pinned的实例，实现`new`方法：</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! ```</span>
-<span class="doccomment">//! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};</span>
+<span class="doccomment">//! # use self_ref_in_rust::{loading::{Library, Function}, result::Result};</span>
 <span class="doccomment">//! # use std::{ffi::c_void, pin::Pin, marker::PhantomPinned};</span>
 <span class="doccomment">//! # pub struct BundleService { </span>
 <span class="doccomment">//! #     library: Library, </span>
@@ -526,7 +526,7 @@
 <span class="doccomment">//! 我们可以选择通过`Box::into_raw`实现这个方案：</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! ```</span>
-<span class="doccomment">//! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};</span>
+<span class="doccomment">//! # use self_ref_in_rust::{loading::{Library, Function}, result::Result};</span>
 <span class="doccomment">//! # use std::ffi::c_void;</span>
 <span class="doccomment">//! pub struct BundleService {  </span>
 <span class="doccomment">//!     library: *const Library, </span>
@@ -552,7 +552,7 @@
 <span class="doccomment">//! </span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! ```</span>
-<span class="doccomment">//! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};</span>
+<span class="doccomment">//! # use self_ref_in_rust::{loading::{Library, Function}, result::Result};</span>
 <span class="doccomment">//! # use std::ffi::c_void;</span>
 <span class="doccomment">//! # pub struct BundleService {  </span>
 <span class="doccomment">//! #     library: *const Library, </span>
@@ -576,7 +576,7 @@
 <span class="doccomment">//! 也可以选择使用引用计数实现这个方案：</span>
 <span class="doccomment">//! </span>
 <span class="doccomment">//! ```</span>
-<span class="doccomment">//! # use self_ref_in_rust::{loading::{Library, Function}, error::Result};</span>
+<span class="doccomment">//! # use self_ref_in_rust::{loading::{Library, Function}, result::Result};</span>
 <span class="doccomment">//! # use std::{ffi::c_void, rc::Rc};</span>
 <span class="doccomment">//! pub struct BundleService {  </span>
 <span class="doccomment">//!     func_login: Function&lt;Rc&lt;Library&gt;, extern &quot;C&quot; fn(*const c_void) -&gt; i32&gt;,</span>
@@ -662,7 +662,7 @@
 
 
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">loading</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">error</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">result</span>;
 <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
 <span class="kw">mod</span> <span class="ident">factory</span>;
 

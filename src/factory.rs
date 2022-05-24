@@ -1,5 +1,5 @@
 use crate::{
-    error::Result,
+    result::Result,
     loading::{Function, Library},
 };
 use std::ffi::{c_void, CString};

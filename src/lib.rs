@@ -224,9 +224,9 @@
 //! # }
 //! impl Drop for BundleService {
 //!     fn drop(&mut self) {
-//!         let _library = unsafe { Box::from_raw(self.library as *mut Library) };
 //!         self.func_login = Function::dummy();
-//!         self.func_logout = Function::dummy();
+//!         self.func_logout = Function::dummy();        
+//!         let _library = unsafe { Box::from_raw(self.library as *mut Library) };
 //!     }
 //! }
 //! ```

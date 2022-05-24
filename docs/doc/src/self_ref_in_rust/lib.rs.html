@@ -563,9 +563,9 @@
 <span class="doccomment">//! # }</span>
 <span class="doccomment">//! impl Drop for BundleService {</span>
 <span class="doccomment">//!     fn drop(&amp;mut self) {</span>
-<span class="doccomment">//!         let _library = unsafe { Box::from_raw(self.library as *mut Library) };</span>
 <span class="doccomment">//!         self.func_login = Function::dummy();</span>
-<span class="doccomment">//!         self.func_logout = Function::dummy();</span>
+<span class="doccomment">//!         self.func_logout = Function::dummy();        </span>
+<span class="doccomment">//!         let _library = unsafe { Box::from_raw(self.library as *mut Library) };</span>
 <span class="doccomment">//!     }</span>
 <span class="doccomment">//! }</span>
 <span class="doccomment">//! ```</span>

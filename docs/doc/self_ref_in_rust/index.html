@@ -150,7 +150,7 @@
 <ul>
 <li>创建一个<code>Box&lt;Library&gt;</code>，通过<code>Box::into_raw</code>将其转换为裸指针，便可以在<code>func_*</code>中共享<code>Library</code>了。 </li>
 </ul>
-<p>当然，也不要忘了回收资源，否则会造成内存泄漏：</p>
+<p>当然，也不要忘了回收资源，否则会造成内存泄露：</p>
 
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">impl</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">BundleService</span> {
     <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
